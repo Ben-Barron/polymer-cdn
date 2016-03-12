@@ -1,0 +1,13 @@
+{
+  "name": "polymer-cdn",
+  "license": "MIT",
+  "dependencies": {
+    "polymer": "Polymer/polymer#latest",
+    "iron-elements": "PolymerElements/iron-elements#latest",
+	"paper-elements": "PolymerElements/paper-elements#latest",
+	"gold-elements": "PolymerElements/gold-elements#latest",
+	"neon-elements": "PolymerElements/neon-elements#latest",
+	"carbon-elements": "PolymerElements/carbon-elements#latest",
+	"platinum-elements": "PolymerElements/platinum-elements#latest"
+  }
+}
