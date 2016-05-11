@@ -155,6 +155,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
           assert.equal(getComputedStyle(overlay).display, 'none', 'overlay starts hidden');
         });
 
+        test('_renderOpened called only after is attached', function(done) {
+          var overlay = document.createElement('test-overlay');
+          // The overlay is ready at this point, but not yet attached.
+          var spy = sinon.spy(overlay, '_renderOpened');
+          // This triggers _openedChanged.
+          overlay.opened = true;
+          // Even if not attached yet, overlay should be the current overlay!
+          assert.equal(overlay, overlay._manager.currentOverlay(), 'currentOverlay ok');
+          // Wait long enough for requestAnimationFrame callback.
+          overlay.async(function() {
+            assert.isFalse(spy.called, '_renderOpened not called');
+            done();
+          }, 100);
+        });
+
         test('overlay open/close events', function(done) {
           var nevents = 0;
 
@@ -538,15 +553,21 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             Polymer.Base.async(function() {
               // Go to last element.
               MockInteractions.focus(focusableNodes[focusableNodes.length-1]);
-              // Simulate TAB & focus out of overlay.
+              // Spy keydown.
+              var tabSpy = sinon.spy();
+              document.addEventListener('keydown', tabSpy);
+              // Simulate TAB.
               MockInteractions.pressAndReleaseKeyOn(document, 9);
-              MockInteractions.focus(document.body);
-
               assert.equal(focusableNodes[0], document.activeElement, 'focus wrapped to first focusable');
-              // Simulate Shift+TAB & focus out of overlay.
+              assert.isTrue(tabSpy.calledOnce, 'keydown spy called');
+              assert.isTrue(tabSpy.getCall(0).args[0].defaultPrevented, 'keydown default prevented');
+              // Simulate Shift+TAB.
               MockInteractions.pressAndReleaseKeyOn(document, 9, ['shift']);
-              MockInteractions.focus(document.body);
               assert.equal(focusableNodes[focusableNodes.length-1], document.activeElement, 'focus wrapped to last focusable');
+              assert.isTrue(tabSpy.calledTwice, 'keydown spy called again');
+              assert.isTrue(tabSpy.getCall(1).args[0].defaultPrevented, 'keydown default prevented again');
+              // Cleanup.
+              document.removeEventListener('keydown', tabSpy);
               done();
             }, 1);
           });
@@ -559,13 +580,11 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             Polymer.Base.async(function() {
               // Go to last element.
               MockInteractions.focus(focusableNodes[focusableNodes.length-1]);
-              // Simulate TAB & focus out of overlay.
+              // Simulate TAB.
               MockInteractions.pressAndReleaseKeyOn(document, 9);
-              MockInteractions.focus(document.body);
               assert.equal(focusableNodes[0], document.activeElement, 'focus wrapped to first focusable');
-              // Simulate Shift+TAB & focus out of overlay.
+              // Simulate Shift+TAB.
               MockInteractions.pressAndReleaseKeyOn(document, 9, ['shift']);
-              MockInteractions.focus(document.body);
               assert.equal(focusableNodes[focusableNodes.length-1], document.activeElement, 'focus wrapped to last focusable');
               done();
             }, 1);
@@ -685,10 +704,10 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
         });
 
         test('backdrop is opened when overlay is opened', function(done) {
-          assert.isDefined(overlay.backdropElement, 'backdrop is defined');
+          assert.isOk(overlay.backdropElement, 'backdrop is defined');
           runAfterOpen(overlay, function() {
             assert.isTrue(overlay.backdropElement.opened, 'backdrop is opened');
-            assert.isDefined(overlay.backdropElement.parentNode, 'backdrop is inserted in the DOM');
+            assert.isOk(overlay.backdropElement.parentNode, 'backdrop is inserted in the DOM');
             done();
           });
         });
@@ -749,6 +768,27 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
             assert.isFalse(overlay.backdropElement.opened, 'backdrop is closed');
             assert.isNotOk(overlay.backdropElement.parentNode, 'backdrop is removed from document');
             done();
+          });
+        });
+
+        test('withBackdrop = true prevents click outside event', function(done) {
+          runAfterOpen(overlay, function() {
+            overlay.addEventListener('iron-overlay-canceled', function(event) {
+              assert.isTrue(event.detail.defaultPrevented, 'click event prevented');
+              done();
+            });
+            MockInteractions.tap(document.body);
+          });
+        });
+
+        test('withBackdrop = false does not prevent click outside event', function(done) {
+          overlay.withBackdrop = false;
+          runAfterOpen(overlay, function() {
+            overlay.addEventListener('iron-overlay-canceled', function(event) {
+              assert.isFalse(event.detail.defaultPrevented, 'click event not prevented');
+              done();
+            });
+            MockInteractions.tap(document.body);
           });
         });
       });
